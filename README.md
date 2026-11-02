@@ -9,4 +9,4 @@ The files zivm1.R and vmsp.R contain the codes for the data analysis using the Z
 
 The comparison.R file contains codes for the model comparison with the Fisher-Lee, SPML, CIPC and GCPC models in terms of the circular CRPS and Leave-one-out Cross Validation.
 
-Due to confidentiality restrictions, we do not have permission to make the original data analysed in our manuscript publicly available. As an alternative, a similar dataset (dat.csv) generated using parametric bootstrapping is provided here solely for illustrative purposes and for use with the accompanying code. The results obtained from analysing this dataset will naturally differ from those obtained using the original data.
+A dataset (dat.csv) generated using parametric bootstrapping is provided here solely for illustrative purposes and for use with the accompanying code. The results obtained from analysing this dataset will naturally differ from those obtained using the original data used in the paper. The dataset here contains two circular variables (y.circ, x.circ) and a linear variable (x.lin). Angles are given in radians.
