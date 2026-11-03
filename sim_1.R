@@ -135,14 +135,14 @@ zijpnll = function(x, y, a, p, phi, gamma) {
   b = int_b(x_pr(beta(phi), x))
   mu = p[1] + 2*atan(as.vector(b %*% gamma))
   kappa = p[2] ; psi = p[3]
-  if (abs(kappa*psi) > 10) return(Inf)
+  if (abs(kappa*psi) > 10) return(9999)
   else { ncon = JPNCon(kappa, psi)
   return(-sum((1 - a)*log(djp(y, mu, kappa, psi, ncon)))) }  
 }
 
 # Objective function for updating (phi,gamma) in ZIJP models
 E.zijp = function(x, y, phi, gamma, a, mu, kappa, psi){
-  if(abs(kappa*psi) > 10) return(Inf)
+  if(abs(kappa*psi) > 10) return(9999)
   b = int_b(x_pr(beta(phi), x))
   delta = y - mu - 2*atan(as.vector(b %*% gamma))
   eps = 1e-6
@@ -159,7 +159,7 @@ loglik.zijp1 = function(theta, x, y){
   q = ncol(x) - 1
   b = int_b(x_pr(beta(theta[5:(4+q)]), x))
   mu = theta[2] + 2*atan(as.vector(b %*% theta[-c(1:(4+q))]))
-  if(abs(theta[3]*theta[4]) > 10) return(-Inf)
+  if(abs(theta[3]*theta[4]) > 10) return(-9999)
   else {
     ncon = JPNCon(theta[3], theta[4])
     sum(log(theta[1]*dvm(y, 0, 1000) + (1 - theta[1])*djp(y, mu, theta[3], theta[4], ncon)))
@@ -302,7 +302,7 @@ res = parLapply(cl, 1:1050, function(j) {
         y[i] = jpsim(1, mu[i], kappa, psi, ncon)
       }
     }
-    gamma.init = matrix(rnorm(m*d.f, 0, 0.3), m, d.f, byrow = TRUE)
+    gamma.init = matrix(rnorm(m*d.f, 0, 0.3), m, d.f)
     init1 = cbind(p, mu0, kappa, psi, phi, gamma.init)         # Initial values for ZIJP 1
     fit = zijp1.em(x, y, init1)                                # ZIJP 1 fit
     
