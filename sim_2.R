@@ -154,14 +154,14 @@ zijpnll = function(x, y, a, p, phi, gamma) {
   b = int_b(x_pr(beta(phi), x))
   mu = p[1] + 2*atan(as.vector(b %*% gamma))
   kappa = p[2] ; psi = p[3]
-  if (abs(kappa*psi) > 10) return(Inf)
+  if (abs(kappa*psi) > 10) return(9999)
   else { ncon = JPNCon(kappa, psi)
   return(-sum((1 - a)*log(djp(y, mu, kappa, psi, ncon)))) }  
 }
 
 # Objective function for updating (phi,gamma) in ZIJP models
 E.zijp = function(x, y, phi, gamma, a, mu, kappa, psi){
-  if(abs(kappa*psi) > 10) return(Inf)
+  if(abs(kappa*psi) > 10) return(9999)
   b = int_b(x_pr(beta(phi), x))
   delta = y - mu - 2*atan(as.vector(b %*% gamma))
   eps = 1e-6
@@ -179,7 +179,7 @@ loglik.zijp2 = function(theta, x, z, y){
   q2 = ncol(z)
   b = int_b(x_pr(beta(theta[(q2+4):(q2+3+q1)]), x))
   mu = theta[(q2+1)] + 2*atan(as.vector(b %*% theta[-c(1:(q2+3+q1))]))
-  if(abs(theta[(q2+2)]*theta[(q2+3)]) > 10) return(-Inf)
+  if(abs(theta[(q2+2)]*theta[(q2+3)]) > 10) return(-9999)
   else {
     ncon = JPNCon(theta[(q2+2)], theta[(q2+3)])
     sum(log(p(theta[1:q2], z)*dvm(y, 0, 1000) + (1 - p(theta[1:q2], z))*djp(y, mu, theta[(q2+2)], theta[(q2+3)], ncon)))
@@ -225,21 +225,12 @@ lc.zijp2 = function(x, z, y, init, tol = 1e-3, max.iter = 200){
 # Function returning estimates under the ZIJP 2 model given multiple random initial values
 zijp2.em = function(x, z, y, init){
   M = nrow(init)
-  theta.list = vector("list", M)
-  ll = rep(-Inf, M)
-  for(i in 1:M){
-    fit = lc.zijp2(x, z, y, init[i,])
-    if(!is.null(fit)){
-      theta.list[[i]] = fit
-      ll[i] = loglik.zijp2(fit, x, z, y)
-    }
-  }
-  if(all(is.infinite(ll))){
-    stop("No initial value converged")
-  }
-  theta_hat = theta.list[[which.max(ll)]]
+  theta.em = t(sapply(1:M, function(i) lc.zijp2(x, z, y, init[i,])))
+  ll = sapply(1:M, function(i) loglik.zijp2(theta.em[i,], x, z, y))
+  theta_hat = theta.em[which.max(ll),]
   return(theta_hat)
-}
+}  
+
 
 
 ####### Simulation #######
@@ -307,7 +298,7 @@ clusterExport(cl, c(
   "delta0", "delta1", "delta2", "delta", "mu0", "kappa", "psi", "ncon", "beta.0", "phi", "f0", "f_0", "m", "d.f", "t"
 ), envir = environment())
 
-res = parLapply(cl, 1:550, function(j) {
+res = parLapply(cl, 1:520, function(j) {
   tryCatch({
     # Data generation under ZIJP 2
     set.seed(j)
@@ -327,7 +318,7 @@ res = parLapply(cl, 1:550, function(j) {
         y[i] = jpsim(1, mu[i], kappa, psi, ncon)
       }
     }
-    gamma.init = matrix(rnorm(m*d.f, 0, 0.3), m, d.f, byrow = TRUE)
+    gamma.init = matrix(rnorm(m*d.f, 0, 0.3), m, d.f)
     init1 = cbind(delta0, delta1, delta2, mu0, kappa, psi, phi, gamma.init)      # Initial values for ZIJP 2
     fit = zijp2.em(x, z, y, init1)                                               # ZIJP 2 fit
     
@@ -400,10 +391,10 @@ sim = list(Estimate = apply(res1[, 1:(q2+4+q1)], 2, mean),
            Std.Error = apply(res1[, 1:(q2+4+q1)], 2, sd), cMSPE = cMSPE)
 
 #ZIvM 2
-beta_hat = unname(t(sapply(res1[, (q2+3):(q2+2+q1)], beta)))         
-res1 = cbind(res1[, 1:(q2+2)], beta_hat, res1[, -c(1:(q2+2+q1))]) 
-sim = list(Estimate = apply(res1[, 1:(q2+3+q1)], 2, mean),
-           Std.Error = apply(res1[, 1:(q2+3+q1)], 2, sd), cMSPE = cMSPE)
+#beta_hat = unname(t(sapply(res1[, (q2+3):(q2+2+q1)], beta)))         
+#res1 = cbind(res1[, 1:(q2+2)], beta_hat, res1[, -c(1:(q2+2+q1))]) 
+#sim = list(Estimate = apply(res1[, 1:(q2+3+q1)], 2, mean),
+#           Std.Error = apply(res1[, 1:(q2+3+q1)], 2, sd), cMSPE = cMSPE)
 
 sim$Estimate[q2+1] = circ.mean(res1[, q2+1])
 sim$Std.Error[q2+1] = sd.circular(res1[, q2+1])
