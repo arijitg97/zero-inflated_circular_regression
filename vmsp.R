@@ -10,7 +10,7 @@ l2 = function(v){
   sqrt(sum(v^2))
 }
 
-#projected data
+# Projected data
 x_pr = function(beta, x){
   as.vector(x %*% (beta/l2(beta)))
 }
@@ -37,15 +37,15 @@ cdist = function(a, b){
 # Example data (angles in radians)
 d = read.csv("dat.csv")  # Reading "dat.csv" after saving it in the current working directory
 
-x0 = cbind(d[, 2], sin(d[, 3]), cos(d[, 3])) # Covariates
-x = apply(x0, 2, function(x) x - mean(x))    # Centred covariates
-y = d[, 1]                                   # Response
+x0 = cbind(d[, 2], sin(d[, 3]), cos(d[, 3]))  # Linear covariates
+x = apply(x0, 2, function(x) x - mean(x))     # Centred covariates
+y = d[, 1]                                    # Circular response
 
 
 ################################################
 
 
-
+# Integrated B-spline basis functions
 int_b = function(x, df = d.f, degree = 2) {
   ibs_x = ibs(x, df, degree = degree)
   ibs_0 = predict(ibs_x, 0)
@@ -183,11 +183,12 @@ vmsp = function(x, y, n.knots = 3, m = 200){
   return(result)
 }
 
+# vMSp fit with N=3 interior knots                      
 t1 = Sys.time()
-fit = vmsp(x,y)
+fit1 = vmsp(x,y)
 t2 = Sys.time()
 t2 - t1
-fit
+fit1
 
 
 ####### LOOCV #########
@@ -199,7 +200,6 @@ int1_b = function(x.new, x.ref, df = d.f, degree = 2){
   ibs_0   = predict(ibs_ref, 0)
   sweep(ibs_new, 2, ibs_0, "-")
 }
-
 
 
 n.sim = 1e5
@@ -216,17 +216,16 @@ t1 = Sys.time()
 suppressWarnings({
   for(i in 1:n){
   
-  test.idx = i
-  train.idx = setdiff(1:n, i)
+  train.idx = (seq_len(n) != i)
   
   # Split predictors and response
   x.train = x[train.idx, , drop = FALSE]
-  x.test  = x[test.idx, , drop = FALSE]
+  x.test  = x[i, , drop = FALSE]
   
   y.train = y[train.idx]
-  y.test  = y[test.idx]
+  y.test  = y[i]
  
-  fit = vmsp(x.train, y.train)
+  fit = vmsp(x.train, y.train)  # vMSp fit with N=3
   theta = fit$theta
   b = beta(theta[3:(2+q)])  
   g = theta[-c(1:(2+q))]
@@ -261,7 +260,7 @@ t2 = Sys.time()
 t2 - t1
 
 # Average CV error
-round(mean(cv_vmsp), 4)
+round(mean(cv_vmsp, na.rm = TRUE), 4)
 
 
 
