@@ -15,7 +15,10 @@ x_pr = function(beta, x){
 }
 
 # Beta reparameterisation
-beta = function(phi) c(1/sqrt(1+t(phi) %*% phi), as.numeric(1/sqrt(1+t(phi) %*% phi))*phi)
+beta = function(phi) {
+  b = 1 / sqrt(1 + sum(phi^2))
+  c(b, b * phi)
+}
 
 
 ########## ZIvM 1 ###########
