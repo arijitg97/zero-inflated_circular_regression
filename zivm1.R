@@ -37,9 +37,9 @@ cdist = function(a, b){
 # Example data (angles in radians)
 d = read.csv("dat.csv")  # Reading "dat.csv" after saving it in the current working directory
 
-x0 = cbind(d[, 2], sin(d[, 3]), cos(d[, 3])) # Covariates
-x = apply(x0, 2, function(x) x - mean(x))    # Centred covariates
-y = d[, 1]                                   # Response
+x0 = cbind(d[, 2], sin(d[, 3]), cos(d[, 3]))  # Linear covariates
+x = apply(x0, 2, function(x) x - mean(x))     # Centred covariates
+y = d[, 1]                                    # Circular response
 
 
 
@@ -52,7 +52,7 @@ fl = suppressWarnings(lm.circular(y, x, init = rnorm(ncol(x), 0, 0.3), type = 'c
 ##########  Fit ZIvM 1 model ###########
 
 
-
+# Integrated B-spline basis functions
 int_b = function(x, df = d.f, degree = 2) {
   ibs_x = ibs(x, df, degree = degree)
   ibs_0 = predict(ibs_x, 0)
@@ -192,6 +192,7 @@ zivm1 = function(x, y, n.knots = 3, m = 200){
   return(result)
 }
 
+# ZIvM 1 fit with N=3 interior knots
 t1 = Sys.time()
 fit = zivm1(x, y)
 t2 = Sys.time()
@@ -225,17 +226,16 @@ t1 = Sys.time()
 suppressWarnings({
   for(i in 1:n){
   
-  test.idx = i
-  train.idx = setdiff(1:n, i)
+  train.idx = (seq_len(n) != i)
   
   # Split predictors and response
   x.train = x[train.idx, , drop = FALSE]
-  x.test  = x[test.idx, , drop = FALSE]
+  x.test  = x[i, , drop = FALSE]
   
   y.train = y[train.idx]
-  y.test  = y[test.idx]
+  y.test  = y[i]
   
-  fit = zivm1(x.train, y.train)
+  fit = zivm1(x.train, y.train)  # ZIvM 1 fit with N=3
   theta = fit$theta
   b = beta(theta[4:(3+q)])
   g = theta[-c(1:(3+q))]
@@ -275,7 +275,7 @@ t2 - t1
 
 
 # Average CV error
-round(mean(cv_zivm1), 4)
+round(mean(cv_zivm1, na.rm = TRUE), 4)
 
 
 
@@ -315,7 +315,7 @@ legend("bottomleft", legend = c("ZIvM 1", "Confidence band for ZIvM 1", "Fisher-
 
 # Plotting Donut-plots of ZIvM 1 (N=3) and Fisher-Lee
 
-mu_fl = (as.numeric(fl$mu) + 2*atan(as.vector(x %*% fl$coefficients))) %% (2*pi) # Estimated mean direction in Fisher-Lee model
+mu_fl = (as.numeric(fl$mu) + 2*atan(as.vector(x %*% fl$coefficients))) %% (2*pi)  # Estimated mean direction in Fisher-Lee model
 
 n.knots = 3
 d.f = n.knots + 2
@@ -341,8 +341,8 @@ plot_circ_diag = function(y, y_hat) {
   points(x[acw], y_cart[acw], pch = 1,  col = "blue", cex = 2)   # Open
 }
 
-par(mfrow = c(1, 2), mar = c(3, 2, 2, 1), oma = c(0, 0, 0, 0))    # shrink subplot margins
-id = (y != 0)
+par(mfrow = c(1, 2), mar = c(3, 2, 2, 1), oma = c(0, 0, 0, 0))    
+id = (y != 0)                     # Non-zero response indices
 plot_circ_diag(y[id], mu_fl[id])
 plot_circ_diag(y[id], mu_ZIVM1[id])
 
