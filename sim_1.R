@@ -17,21 +17,9 @@ x_pr = function(beta, x){
 # Beta reparameterisation
 beta = function(phi) c(1/sqrt(1+t(phi) %*% phi), as.numeric(1/sqrt(1+t(phi) %*% phi))*phi)
 
-# Jacobian matrix of beta with respect to phi
-jac.beta = function(phi){
-  a1 = -as.numeric(1/(1+t(phi) %*% phi)^(3/2))*phi
-  a2 = as.numeric(1/sqrt(1+t(phi) %*% phi))*diag(1, 2) - as.numeric(1/(1+t(phi) %*% phi)^(3/2))*(phi %*% t(phi))
-  return(matrix(rbind(a1, a2), 3, 2, byrow = T))
-}
-
-# Shortest arc-length distance
-cdist = function(a, b){
-  delta = abs(a - b)     
-  pmin(delta, 2*pi - delta)
-}
-
 
 ########## ZIvM 1 ###########
+
 
 # Objective function for updating (phi,gamma) in ZIvM models
 E.zivm = function(x, y, phi, gamma, a, mu){
