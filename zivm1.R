@@ -16,13 +16,15 @@ x_pr = function(beta, x){
 }
 
 # Reparameterisation of beta
-beta = function(phi) c(1/sqrt(1+t(phi)%*%phi), as.numeric(1/sqrt(1+t(phi) %*% phi))*phi)
+beta = function(phi) {
+  b = 1 / sqrt(1 + sum(phi^2))
+  c(b, b * phi)
+}
 
-# Jacobian
+# Jacobian matrix of beta with respect to phi
 jac.beta = function(phi){
-  a1 = -as.numeric(1/(1+t(phi) %*% phi)^(3/2))*phi
-  a2 = as.numeric(1/sqrt(1+t(phi) %*% phi))*diag(1, 2) - as.numeric(1/(1+t(phi) %*% phi)^(3/2))*(phi %*% t(phi))
-  return(matrix(rbind(a1, a2), 3, 2, byrow = T))
+  s = 1 + sum(phi^2)
+  rbind(-phi/s^(3/2), diag(length(phi))/sqrt(s) - (phi %*% t(phi))/s^(3/2))
 }
 
 # Shortest arc-length distance
