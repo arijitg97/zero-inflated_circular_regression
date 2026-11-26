@@ -24,17 +24,17 @@ fspml = function(theta, gamma, omega){
 # Example data (angles in radians)
 d = read.csv("dat.csv")  # Reading "dat.csv" after saving it in the current working directory
 
-x0 = cbind(d[, 2], sin(d[, 3]), cos(d[, 3])) # Covariates
+x0 = cbind(d[, 2], sin(d[, 3]), cos(d[, 3])) # Linear covariates
 x = apply(x0, 2, function(x) x - mean(x))    # Centred covariates
-y = d[, 1]                                   # Response
+y = d[, 1]                                   # Circular response
 
-n = length(y)
+n = length(y)  # Sample size
 
 id = (y != 0)  # Non-zero responses
 
 
 
-###############  Circular CRPS and Sum of Residuals  ##################
+###############  Circular CRPS, Sum of Residuals and AIC/BIC  ##################
 
 
 circ.crps = function(y, dens, n.sim = 1e6){
@@ -55,7 +55,7 @@ circ.crps = function(y, dens, n.sim = 1e6){
 circ.res = function(y, mu){round(sum(cdist(y, mu)), 4)}
 
 
-# Fisher-Lee
+# Fisher-Lee (FL)
 
 fl = suppressWarnings(lm.circular(y, x, init = rnorm(ncol(x), 0, 0.3), type = 'c-l')) 
 mu_fl = (as.numeric(fl$mu) + 2*atan(as.vector(x %*% fl$coefficients))) %% (2*pi)
@@ -64,9 +64,22 @@ crps.fl = circ.crps(y, function(t, i) CircStats::dvm(t, mu_fl[i], fl$kappa))
 E.fl = circ.res(y[id], mu_fl[id])  # Sum of residuals
 
 
+# Log-likelihood of FL model
+loglik.fl = function(theta, x, y){
+  mu = theta[1] + 2*atan(as.vector(x %*% theta[-c(1:2)]))
+  sum(log(CircStats::dvm(y, mu, theta[2])))
+}
+
+est.fl = c(as.numeric(fl$mu), fl$kappa, fl$coefficients)    # Parameter estimates under FL model
+aic.fl = 2*length(est.fl) - 2*loglik.fl(est.fl, x, y)       # AIC of FL 
+bic.fl = length(est.fl)*log(n) - 2*loglik.fl(est.fl, x, y)  # BIC of FL 
+
+
+
 # SPML
 
-bML = round(spml.reg(y, x0, rads = TRUE, xnew = NULL, tol = 1e-06)$be, 4)
+spml.fit = spml.reg(y, x0, rads = TRUE, tol = 1e-06)
+bML = spml.fit$be
 mu1 = cbind(1, x0) %*% bML
 gamma = apply(mu1, 1, l2)
 omega = atan2(mu1[,2], mu1[,1]) %% (2*pi) 
@@ -75,9 +88,15 @@ crps.spml = circ.crps(y, function(t, i) fspml(t, gamma[i], omega[i]))
 E.spml = circ.res(y[id], omega[id])  # Sum of residuals
 
 
+aic.spml = round(2*length(bML) - 2*spml.fit$loglik, 4)         # AIC of SPML 
+bic.spml = round(length(bML)*log(n) - 2*spml.fit$loglik, 4)    # BIC of SPML
+
+
+
 # CIPC
 
-bML2 = round(cipc.reg(y, x0, rads = TRUE, xnew = NULL, tol = 1e-06)$be, 4)
+cipc.fit = cipc.reg(y, x0, rads = TRUE, tol = 1e-06)
+bML2 = cipc.fit$be
 mu2 = cbind(1, x0) %*% bML2
 gamma1 = apply(mu2, 1, l2)
 omega1 = atan2(mu2[,2], mu2[,1]) %% (2*pi)
@@ -85,17 +104,27 @@ crps.cipc = circ.crps(y, function(t, i) Directional::dcipc(t, omega1[i], gamma1[
 
 E.cipc = circ.res(y[id], omega1[id])  # Sum of residuals
 
+
+aic.cipc = round(2*length(bML2) - 2*cipc.fit$loglik, 4)         # AIC of CIPC 
+bic.cipc = round(length(bML2)*log(n) - 2*cipc.fit$loglik, 4)    # BIC of CIPC
+
+
+
 # GCPC
 
-fit.gcpc = gcpc.reg(y, x0, rads = TRUE, xnew = NULL)
-bML3 = round(fit.gcpc$be,4)
-rho = fit.gcpc$rho
+gcpc.fit = gcpc.reg(y, x0, rads = TRUE)
+bML3 = gcpc.fit$be
+rho = gcpc.fit$rho
 mu3 = cbind(1, x0) %*% bML3
 gamma2 = apply(mu3, 1, l2)
 omega2 = atan2(mu3[, 2], mu3[, 1]) %% (2*pi)
 crps.gcpc = circ.crps(y, function(t, i) Directional::dgcpc(t, omega2[i], gamma2[i], rho, rads = TRUE))
 
 E.gcpc = circ.res(y[id], omega2[id])  # Sum of residuals
+
+
+aic.gcpc = round(2*(length(bML3) + 1) - 2*gcpc.fit$loglik, 4)         # AIC of GCPC 
+bic.gcpc = round((length(bML3) + 1)*log(n) - 2*gcpc.fit$loglik, 4)    # BIC of GCPC
 
 
 
@@ -105,10 +134,16 @@ c(FL = crps.fl, SPML = crps.spml, CIPC = crps.cipc, GCPC = crps.gcpc)
 # Sum of residuals
 c(FL = E.fl, SPML = E.spml, CIPC = E.cipc, GCPC = E.gcpc)
 
+# AIC
+c(FL = aic.fl, SPML = aic.spml, CIPC = aic.cipc, GCPC = aic.gcpc)
+
+# BIC
+c(FL = bic.fl, SPML = bic.spml, CIPC = bic.cipc, GCPC = bic.gcpc)
 
 
 
-###############   LOOCV  ##################
+
+###################   LOOCV   #####################
 
 
 
@@ -184,8 +219,8 @@ cv.fun = function(i){
 ncores = detectCores()
 cl = makeCluster(ncores - 1)
 
-clusterExport(cl, c("l2", "x", "x0", "y", "n", "n.sim",
-                    "sim", "sim1", "sim2", "d12", "cdist", "fspml", "cv.fun"), envir = environment())
+clusterExport(cl, c("l2", "x", "x0", "y", "n", "n.sim", "sim", "sim1", "sim2", "d12", "cdist", "fspml", "cv.fun")
+              , envir = environment())
 
 invisible(clusterEvalQ(cl, {
   library(circular)
